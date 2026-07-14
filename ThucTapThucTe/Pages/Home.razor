@@ -1,0 +1,622 @@
+﻿@page "/"
+@inject IJSRuntime JS
+
+<div class="login-wrapper">
+    <div class="login-box">
+
+        @* --- 1. FORM ĐĂNG NHẬP (CÓ NÚT MXH) --- *@
+        @if (currentForm == "login")
+        {
+            <h2>ĐĂNG NHẬP</h2>
+
+            <div class="input-group">
+                <label>Tên đăng nhập</label>
+                <input type="text" @bind="loginUser" placeholder="Nhập tên đăng nhập" />
+            </div>
+
+            <div class="input-group">
+                <label>Mật khẩu</label>
+                <input type="password" @bind="loginPass" placeholder="Nhập mật khẩu" />
+            </div>
+
+            <div class="forgot-link">
+                <a href="javascript:void(0)" @onclick='() => SwitchForm("forgot")'>Quên mật khẩu?</a>
+            </div>
+
+            <button class="btn-submit" @onclick="FormLogin">Đăng nhập</button>
+
+            <div class="social-zone">
+                <p>Hoặc đăng nhập nhanh bằng</p>
+                <div class="social-btns">
+                    <a class="btn-social btn-gg" href="https://accounts.google.com/signin" target="_blank">Google</a>
+                    <a class="btn-social btn-fb" href="https://www.facebook.com/login" target="_blank">Facebook</a>
+                    <a class="btn-social btn-gh" href="https://github.com/login" target="_blank">GitHub</a>
+                </div>
+            </div>
+
+            <div class="footer-text">
+                Chưa có tài khoản? <a href="javascript:void(0)" @onclick='() => SwitchForm("register")'>Đăng ký ngay</a>
+            </div>
+        }
+
+        @* --- 2. FORM ĐĂNG KÝ --- *@
+        else if (currentForm == "register")
+        {
+            <h2>ĐĂNG KÝ TÀI KHOẢN</h2>
+
+            <div class="input-group">
+                <label>Họ và tên</label>
+                <input type="text" @bind="regName" placeholder="Nhập họ và tên" />
+            </div>
+
+            <div class="input-group">
+                <label>Tên đăng nhập</label>
+                <input type="text" @bind="regUsername" placeholder="Nhập tên đăng nhập" />
+            </div>
+
+            <div class="input-group">
+                <label>Số điện thoại</label>
+                <input type="tel" @bind="regPhone" placeholder="Nhập số điện thoại" />
+            </div>
+
+            <div class="input-group">
+                <label>Gmail</label>
+                <input type="email" @bind="regEmail" placeholder="Nhập Gmail" />
+            </div>
+
+            <div class="input-group">
+                <label>Mật khẩu mới</label>
+                <input type="password" @bind="regPass" placeholder="Tạo mật khẩu" />
+            </div>
+
+            <div class="input-group">
+                <label>Nhập lại mật khẩu</label>
+                <input type="password" @bind="regConfirmPass" placeholder="Nhập lại mật khẩu" />
+            </div>
+
+            <button class="btn-submit" @onclick="FormRegister">Đăng ký</button>
+
+            <div class="footer-text">
+                Đã có tài khoản? <a href="javascript:void(0)" @onclick='() => SwitchForm("login")'>Đăng nhập</a>
+            </div>
+        }
+
+        @* --- 3. FORM QUÊN MẬT KHẨU --- *@
+        else if (currentForm == "forgot")
+        {
+            <h2>QUÊN MẬT KHẨU</h2>
+            <p class="sub-title">Nhập chính xác tên đăng nhập và Gmail của tài khoản để nhận mã OTP.</p>
+
+            <div class="input-group">
+                <label>Tên đăng nhập</label>
+                <input type="text" @bind="forgotUsername" placeholder="Nhập tên đăng nhập" />
+            </div>
+
+            <div class="input-group">
+                <label>Gmail</label>
+                <input type="email" @bind="forgotMail" placeholder="Nhập Gmail" />
+            </div>
+
+            <button class="btn-submit" @onclick="SendOtpReal">Gửi mã OTP về Gmail</button>
+
+            <div class="footer-text">
+                <a href="javascript:void(0)" @onclick='() => SwitchForm("login")'>Quay lại Đăng nhập</a>
+            </div>
+        }
+
+        @* --- 4. FORM XÁC MINH OTP --- *@
+        else if (currentForm == "otp")
+        {
+            <h2>XÁC THỰC OTP</h2>
+            <p class="sub-title">Mã xác minh đã được gửi về hộp thư Gmail của tài khoản <strong>@forgotUsername</strong></p>
+
+            <div class="input-group">
+                <label>Nhập 4 số OTP</label>
+                <input type="text" maxlength="4" @bind="otpInput" class="otp-center" placeholder="0000" />
+            </div>
+
+            <button class="btn-submit" @onclick="CheckOtp">Xác nhận</button>
+        }
+
+        @* --- 5. FORM ĐỔI MẬT KHẨU MỚI --- *@
+        else if (currentForm == "reset")
+        {
+            <h2>MẬT KHẨU MỚI</h2>
+
+            <div class="input-group">
+                <label>Mật khẩu mới</label>
+                <input type="password" @bind="newPass" placeholder="Nhập mật khẩu mới" />
+            </div>
+
+            <div class="input-group">
+                <label>Xác nhận mật khẩu</label>
+                <input type="password" @bind="confirmPass" placeholder="Nhập lại mật khẩu" />
+            </div>
+
+            <button class="btn-submit" @onclick="SaveNewPass">Đổi mật khẩu</button>
+        }
+
+        @* Thanh hiển thị thông báo kết quả *@
+        @if (!string.IsNullOrEmpty(alertMsg))
+        {
+            <div class="alert-toast @alertClass">@alertMsg</div>
+        }
+
+    </div>
+</div>
+
+@code {
+    [CascadingParameter]
+    public MainLayout? Layout { get; set; }
+
+    private string currentForm = "login";
+    private string alertMsg = "";
+    private string alertClass = "";
+
+    private string loginUser = "";
+    private string loginPass = "";
+
+    private string regName = "";
+    private string regUsername = "";
+    private string regPhone = "";
+    private string regEmail = "";
+    private string regPass = "";
+    private string regConfirmPass = "";
+
+    private string forgotUsername = "";
+    private string forgotMail = "";
+    private string otpInput = "";
+    private string generatedOtp = "";
+    private string newPass = "";
+    private string confirmPass = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("localStorage.clear");
+        }
+        catch { }
+
+        if (Layout != null)
+        {
+            Layout.OnSwitchFormRequested += HandleHeaderSwitchForm;
+        }
+    }
+
+    private void HandleHeaderSwitchForm(string formName)
+    {
+        currentForm = formName;
+        alertMsg = "";
+        StateHasChanged();
+    }
+
+    private void SwitchForm(string name)
+    {
+        currentForm = name;
+        alertMsg = "";
+    }
+
+    private void FormLogin()
+    {
+        if (string.IsNullOrEmpty(loginUser) || string.IsNullOrEmpty(loginPass))
+        {
+            ShowAlert("Đăng nhập thất bại", "fail");
+            return;
+        }
+
+        if ((loginUser == "admin" && loginPass == "123456") ||
+            (loginUser == regUsername && loginPass == regPass && !string.IsNullOrEmpty(regUsername)) ||
+            (loginUser == forgotUsername && loginPass == newPass && !string.IsNullOrEmpty(forgotUsername)))
+        {
+            ShowAlert("Đăng nhập thành công", "ok");
+        }
+        else
+        {
+            ShowAlert("Đăng nhập thất bại", "fail");
+        }
+    }
+
+    private void FormRegister()
+    {
+        if (string.IsNullOrEmpty(regName) || string.IsNullOrEmpty(regUsername) || string.IsNullOrEmpty(regPhone) || string.IsNullOrEmpty(regEmail) || string.IsNullOrEmpty(regPass) || string.IsNullOrEmpty(regConfirmPass))
+        {
+            ShowAlert("Vui lòng điền đầy đủ thông tin", "fail");
+            return;
+        }
+
+        if (regUsername.Any(c => !char.IsLetterOrDigit(c)))
+        {
+            ShowAlert("Tên đăng nhập không được chứa khoảng trắng, dấu câu hoặc ký tự đặc biệt!", "fail");
+            return;
+        }
+
+        var passwordErrors = new List<string>();
+
+        if (regPass.Length < 8)
+        {
+            passwordErrors.Add("phải từ 8 ký tự trở lên");
+        }
+        if (!regPass.Any(char.IsLetter))
+        {
+            passwordErrors.Add("thiếu chữ cái");
+        }
+        if (!regPass.Any(char.IsDigit))
+        {
+            passwordErrors.Add("thiếu chữ số");
+        }
+        if (!regPass.Any(c => !char.IsLetterOrDigit(c)))
+        {
+            passwordErrors.Add("thiếu ký hiệu đặc biệt");
+        }
+
+        if (passwordErrors.Count > 0)
+        {
+            string errorMessage = "Mật khẩu yếu: " + string.Join(", ", passwordErrors);
+            ShowAlert(errorMessage, "fail");
+            return;
+        }
+
+        if (regPass != regConfirmPass)
+        {
+            ShowAlert("Mật khẩu nhập lại không trùng khớp!", "fail");
+            return;
+        }
+
+        ShowAlert("Đăng ký thành công", "ok");
+        loginUser = regUsername;
+        loginPass = regPass;
+
+        Task.Run(async () =>
+        {
+            await Task.Delay(1500);
+            currentForm = "login";
+            alertMsg = "";
+            StateHasChanged();
+        });
+    }
+
+    private async Task SendOtpReal()
+    {
+        if (string.IsNullOrEmpty(forgotUsername) || string.IsNullOrEmpty(forgotMail))
+        {
+            ShowAlert("Vui lòng nhập đầy đủ tên tài khoản và Gmail!", "fail");
+            return;
+        }
+
+        bool isMatched = false;
+
+        if (forgotUsername == regUsername && forgotMail == regEmail && !string.IsNullOrEmpty(regUsername))
+        {
+            isMatched = true;
+        }
+        else if (forgotUsername == "admin" && forgotMail == "toannguyen2kk6@gmail.com")
+        {
+            isMatched = true;
+        }
+
+        if (!isMatched)
+        {
+            ShowAlert("Thông tin tài khoản hoặc Gmail không chính xác!", "fail");
+            return;
+        }
+
+        ShowAlert("Đang tiến hành gửi mã OTP...", "ok");
+
+        var random = new Random();
+        generatedOtp = random.Next(1000, 9999).ToString();
+
+        try
+        {
+            string serviceId = "service_782bn2k";
+            string templateId = "template_ymwf5dk";
+            string publicKey = "EzuHDr7FEynkVOQ3_";
+
+            await JS.InvokeVoidAsync("emailjs.init", publicKey);
+
+            var templateParams = new
+            {
+                to_email = forgotMail,
+                otp_code = generatedOtp,
+                username = forgotUsername
+            };
+
+            await JS.InvokeVoidAsync("emailjs.send", serviceId, templateId, templateParams);
+
+            ShowAlert("Gửi OTP thành công", "ok");
+            currentForm = "otp";
+        }
+        catch (Exception ex)
+        {
+            ShowAlert($"Lỗi gửi: {ex.Message}", "fail");
+        }
+    }
+
+    private void CheckOtp()
+    {
+        if (!string.IsNullOrEmpty(otpInput) && otpInput == generatedOtp)
+        {
+            ShowAlert("Xác thực thành công", "ok");
+            currentForm = "reset";
+        }
+        else
+        {
+            ShowAlert("Xác thực thất bại", "fail");
+        }
+    }
+
+    private void SaveNewPass()
+    {
+        if (string.IsNullOrEmpty(newPass) || string.IsNullOrEmpty(confirmPass) || newPass != confirmPass)
+        {
+            ShowAlert("Đổi mật khẩu thất bại", "fail");
+            return;
+        }
+
+        ShowAlert("Đổi mật khẩu thành công", "ok");
+        loginUser = forgotUsername;
+        loginPass = newPass;
+
+        Task.Run(async () =>
+        {
+            await Task.Delay(1000);
+            currentForm = "login";
+            alertMsg = "";
+            StateHasChanged();
+        });
+    }
+
+    private void ShowAlert(string msg, string type)
+    {
+        alertMsg = msg;
+        alertClass = type == "ok" ? "alert-ok" : "alert-fail";
+
+        Task.Run(async () =>
+        {
+            await Task.Delay(3500);
+            alertMsg = "";
+            StateHasChanged();
+        });
+    }
+}
+
+<style>
+    /* BẮT BUỘC: Reset khoảng cách để phông nền bung lụa hết cỡ */
+    ::deep .sidebar {
+        display: none !important;
+    }
+
+    ::deep main {
+        margin-left: 0 !important;
+        padding: 0 !important;
+    }
+
+    /* ĐÃ SỬA: Màu nền xám nhạt quốc dân đại trà và giãn rộng 100% màn hình */
+    .login-wrapper {
+        position: fixed;
+        top: 56px;
+        left: 0;
+        width: 100vw;
+        height: calc(100vh - 56px);
+        background-color: #f0f2f5; /* Tông màu xám nhẹ của Facebook/Google */
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        font-family: 'Segoe UI', Arial, sans-serif;
+        box-sizing: border-box;
+    }
+
+    .login-box {
+        width: 100%;
+        max-width: 380px;
+        padding: 35px 30px;
+        background: #ffffff;
+        border-radius: 12px;
+        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.05);
+        position: relative;
+    }
+
+    h2 {
+        text-align: center;
+        margin-bottom: 25px;
+        color: #2c3e50;
+        font-size: 22px;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+    }
+
+    .sub-title {
+        text-align: center;
+        color: #7f8c8d;
+        font-size: 13px;
+        margin-top: -15px;
+        margin-bottom: 20px;
+        line-height: 1.4;
+    }
+
+    .input-group {
+        margin-bottom: 18px;
+    }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            color: #4a5568;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 11px 14px;
+            border: 1.5px solid #e2e8f0;
+            border-radius: 6px;
+            box-sizing: border-box;
+            font-size: 14px;
+            transition: all 0.2s ease;
+            outline: none;
+            color: #2d3748;
+        }
+
+            .input-group input:focus {
+                border-color: #3182ce;
+                box-shadow: 0 0 0 3px rgba(49, 130, 206, 0.15);
+            }
+
+    .otp-center {
+        text-align: center;
+        font-size: 22px;
+        font-weight: bold;
+        letter-spacing: 6px;
+        color: #2b6cb0;
+    }
+
+    .forgot-link {
+        text-align: right;
+        margin-bottom: 20px;
+    }
+
+        .forgot-link a {
+            font-size: 13px;
+            color: #3182ce;
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+            .forgot-link a:hover {
+                color: #2b6cb0;
+                text-decoration: underline;
+            }
+
+    .btn-submit {
+        width: 100%;
+        padding: 12px;
+        background: #3182ce;
+        color: #ffffff;
+        border: none;
+        border-radius: 6px;
+        font-size: 15px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        margin-top: 5px;
+    }
+
+        .btn-submit:hover {
+            background: #2b6cb0;
+            transform: translateY(-1px);
+        }
+
+        .btn-submit:active {
+            transform: translateY(0);
+        }
+
+    .social-zone {
+        margin-top: 20px;
+        text-align: center;
+        border-top: 1px solid #eee;
+        padding-top: 15px;
+    }
+
+        .social-zone p {
+            font-size: 12px;
+            color: #777;
+            margin-bottom: 10px;
+        }
+
+    .social-btns {
+        display: flex;
+        gap: 8px;
+    }
+
+    .btn-social {
+        flex: 1;
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        background: #fff;
+        font-size: 13px;
+        font-weight: bold;
+        cursor: pointer;
+        text-align: center;
+        text-decoration: none;
+        display: inline-block;
+        color: inherit;
+    }
+
+    .btn-gg {
+        color: #db4437;
+        border-color: #f5c2be !important;
+    }
+
+    .btn-fb {
+        color: #1877f2;
+        border-color: #b1c2e6 !important;
+    }
+
+    .btn-gh {
+        color: #333;
+        border-color: #ccc !important;
+    }
+
+    .social-btns .btn-social:hover {
+        background: #f8f9fa;
+    }
+
+    .footer-text {
+        margin-top: 25px;
+        text-align: center;
+        font-size: 13px;
+        color: #718096;
+    }
+
+        .footer-text a {
+            color: #3182ce;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+            .footer-text a:hover {
+                color: #2b6cb0;
+                text-decoration: underline;
+            }
+
+    .alert-toast {
+        margin-top: 20px;
+        padding: 12px;
+        border-radius: 6px;
+        text-align: center;
+        font-size: 13px;
+        font-weight: 600;
+        animation: fadeIn 0.3s ease;
+    }
+
+    .alert-ok {
+        background: #ebf8ff;
+        color: #2b6cb0;
+        border: 1px solid #bee3f8;
+    }
+
+    .alert-fail {
+        background: #fff5f5;
+        color: #c53030;
+        border: 1px solid #fed7d7;
+    }
+
+    @@keyframes fadeIn {
+        from
+
+    {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+
+    }
+</style>
